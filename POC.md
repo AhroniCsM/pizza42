@@ -263,32 +263,65 @@ with standard JWT claims.
 
 | Layer | What's in there |
 |---|---|
-| **Auth0 tenant** | 1 SPA app · 1 custom API · 2 M2M apps · Database Connection · Google Social · 2 Post-Login Actions · RBAC enabled · Refresh token rotation |
-| **Frontend** | React 19 + Auth0 React SDK · PKCE flow · refresh-token rotation · ID-token-driven UI (zero post-login API calls to render the dashboard) |
-| **Backend** | FastAPI · JWT validation via JWKS · scope enforcement · live email-verification check · M2M-authenticated Management API calls |
-| **Infrastructure** | Docker multi-stage · Kubernetes on EKS · Secrets via K8s Secrets · public AWS NLB |
+| **Auth0 tenant** | 1 SPA application · 1 custom API · 2 M2M applications · Database Connection · Google Social Connection · 1 Post-Login Action · RBAC enabled with `Add Permissions in Access Token` · Refresh Token Rotation with reuse detection |
+| **Frontend** | React 19 + Auth0 React SDK · OAuth 2.0 Authorization Code flow with PKCE · refresh-token rotation cached in `localStorage` · ID-token-driven UI (zero post-login API calls to render the dashboard, order history, or tier badge) |
+| **Backend** | FastAPI · RS256 JWT validation via Auth0's JWKS endpoint · audience + issuer + expiry checks · scope enforcement on the protected endpoint · live `email_verified` check against the Management API · cached M2M tokens to minimise round trips |
+| **Infrastructure** | Multi-stage Docker image (Vite build → nginx + uvicorn under supervisor) · deployed on Fly.io with always-on machine · HTTPS terminated at the edge · M2M credentials injected as Fly secrets |
 
 ---
 
-## Discussion points (be ready for these)
+## Design decisions worth highlighting
 
-- **Why store orders in `app_metadata` instead of our own DB?** For this POC it
-  demonstrates the identity layer holding behavioral data. In production at
-  Pizza 42's scale, we would keep authoritative orders in a real OLTP DB and
-  only the **last N order summaries** in `app_metadata` — enough for marketing
-  personalization and instant render at login time.
+A few choices in this build are deliberate and reflect how a production rollout
+for Pizza 42 would look in practice.
 
-- **Why namespaced custom claims?** OIDC reserves un-namespaced claim names.
-  Auth0 enforces the namespace requirement to prevent collisions.
+### Orders are stored in Auth0 `app_metadata` — and surfaced via the ID token
+For this POC, persisting orders in the identity profile demonstrates that the
+identity layer can carry behavioural data that the rest of the app reacts to.
+In a real production rollout, the authoritative order ledger would live in an
+OLTP database (transactions, refunds, status changes), and only the **last N
+order summaries** would be cached in `app_metadata`. That gives the marketing
+team the data they need for personalisation and powers the instant-render
+dashboard, without abusing identity as a primary datastore.
 
-- **Why check `email_verified` against the live profile, not just the token?**
-  A stale token issued *before* the user verified could otherwise bypass the
-  check. Fetching the live profile makes the gate authoritative.
+### Email verification is checked against the live Auth0 profile, not the token
+A stale token issued *before* the user verified their email could otherwise
+bypass the gate. The backend fetches the user's authoritative profile via the
+Management API on every order placement, so the verification check is always
+current. The frontend banner is UX polish; the real security lives on the
+server.
 
-- **Why a separate identity for the AI agent?** Least privilege. Even if the
-  agent's code is compromised, it can only do what we explicitly granted —
-  not escalate to user-level permissions.
+### Custom claims are namespaced with a URL
+OIDC reserves un-namespaced claim names. Auth0 enforces a URL namespace
+(`https://pizza42.com/orders`) to prevent collisions with standard JWT claims
+and with other applications that might share the tenant.
 
-- **How does Pizza 42 scale to a million users?** All authentication state is
-  in JWTs, so the backend is stateless — horizontal scaling has no auth
-  bottleneck. Auth0 itself handles the auth-server scale.
+### The `user` role is auto-assigned on first login, not at signup
+Real customer journeys involve drop-off between signup and first login. By
+moving the role-assignment to the Post-Login Action (rather than
+Post-User-Registration), we guarantee the role is in place before any
+authenticated request is made — and we handle social signups (Google, GitHub)
+the same way we handle email/password signups. Brand-new customers who haven't
+re-logged-in yet are covered by a transparent token-refresh retry on the
+frontend.
+
+### Trusted social providers auto-verify the email
+Google, GitHub, Apple, Microsoft, Facebook all verify their users' emails as
+part of their own onboarding. Forcing a Pizza 42 customer who logged in via
+Google to re-verify their Gmail address would be friction with no security
+benefit. The Action sets `email_verified: true` for any user coming from a
+trusted social strategy. Email/password signups still go through the standard
+verification flow because no upstream signal exists.
+
+### Stateless backend means horizontal scale has no auth bottleneck
+Every request carries its own JWT, validated locally by the backend using
+Auth0's published public keys (cached in memory). Adding a tenth backend
+instance requires no coordination with the identity layer. Auth0 itself handles
+the auth-server scale on its side — Pizza 42 doesn't have to.
+
+### M2M credentials never leave the server
+The frontend bundle contains only the public SPA client ID and the API
+audience. The Management-API client_secret (used for reading/writing
+`app_metadata`, assigning roles, verifying emails) lives in Fly secrets and is
+only ever read by the backend process. This is the same boundary that protects
+Pizza 42's database credentials.
