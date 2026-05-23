@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 
@@ -60,20 +60,58 @@ export default function MenuPage({ orderHistoryFromToken }) {
   const { isAuthenticated, user, loginWithRedirect, getAccessTokenSilently } = useAuth0()
   const [ordering, setOrdering] = useState(null)
   const [toast, setToast] = useState(null)
+  // Override the token claim with a server-confirmed verified state.
+  // Lets users who just verified see the banner clear without log-out / log-in.
+  const [serverVerifiedOverride, setServerVerifiedOverride] = useState(false)
 
-  const isEmailVerified = user?.email_verified === true
+  const isEmailVerified = user?.email_verified === true || serverVerifiedOverride
   const loginCount = user?.[`${NS}login_count`]
   const userTier = user?.[`${NS}user_tier`]
   const teaser = userTier ? TIER_TEASERS[userTier] : null
+
+  // If the token says unverified, silently poll the live profile in case the
+  // user just clicked the verification link. As soon as the backend reports
+  // verified=true, force a fresh token + drop the banner.
+  useEffect(() => {
+    if (!isAuthenticated || user?.email_verified === true) return
+    let cancelled = false
+    async function check() {
+      try {
+        const token = await getAccessTokenSilently()
+        const res = await fetch('/api/orders', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        // /api/orders only succeeds if the backend's live email_verified check passes.
+        // If we get 200, the user must be verified live even if our token says otherwise.
+        if (!cancelled && res.ok) {
+          setServerVerifiedOverride(true)
+          // Force fresh token in the background so future requests carry it.
+          await getAccessTokenSilently({ cacheMode: 'off' })
+        }
+      } catch {
+        /* ignore — banner just stays until next login */
+      }
+    }
+    // initial check + every 8s while the page is open
+    check()
+    const id = setInterval(check, 8000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [isAuthenticated, user?.email_verified, getAccessTokenSilently])
 
   async function placeOrder(pizza) {
     if (!isAuthenticated) {
       loginWithRedirect()
       return
     }
+    // Soft frontend gate. The backend is the real gate (it fetches live
+    // email_verified from Auth0). If the token says unverified but live
+    // is verified, the backend will accept the order and we'll silently
+    // refresh the token.
     if (!isEmailVerified) {
-      setToast({ type: 'warning', text: 'Please verify your email before placing an order.' })
-      return
+      setToast({
+        type: 'warning',
+        text: 'Verifying your email status…',
+      })
     }
 
     setOrdering(pizza.id)
