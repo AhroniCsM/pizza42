@@ -2238,3 +2238,162 @@
 .tier-teaser-link:hover {
   text-decoration: underline;
 }
+
+/* ============================================
+   ORDERS DASHBOARD — stats + reorder
+   ============================================ */
+
+.stats-dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.stat-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 18px 14px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.stat-card:hover {
+  border-color: var(--pizza-red);
+  transform: translateY(-2px);
+}
+
+.stat-card-wide {
+  grid-column: span 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.stat-card-wide .stat-value-small {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  background: linear-gradient(135deg, var(--pizza-red), #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .stats-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-card-wide {
+    grid-column: span 2;
+  }
+}
+
+/* Reorder card */
+.reorder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, rgba(229, 30, 42, 0.1), rgba(249, 115, 22, 0.05));
+  border: 2px solid var(--pizza-red);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(229, 30, 42, 0.15);
+}
+
+.reorder-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  flex: 1;
+}
+
+.reorder-emoji {
+  font-size: 2.5rem;
+}
+
+.reorder-title {
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.reorder-pizza {
+  color: #f1f5f9;
+  font-size: 16px;
+}
+
+.reorder-pizza strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+.reorder-meta {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.btn-reorder {
+  background: var(--pizza-red);
+  font-size: 15px;
+  padding: 12px 22px;
+  white-space: nowrap;
+}
+
+.btn-reorder:hover {
+  background: var(--pizza-red-dark);
+  box-shadow: 0 4px 16px rgba(229, 30, 42, 0.4);
+}
+
+.btn-reorder:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.orders-list-heading {
+  text-align: left;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 24px 0 12px;
+}
+
+@media (max-width: 600px) {
+  .reorder-card {
+    flex-direction: column;
+    text-align: center;
+  }
+}
