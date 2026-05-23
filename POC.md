@@ -22,6 +22,9 @@ with direct pointers to source code and Auth0 dashboard configuration.
 
 ## Task requirements → implementation
 
+> All code links point to the matching file & line range in this repository.
+> Base URL: `https://github.com/AhroniCsM/pizza42/blob/main/`
+
 ### ✅ 1. Sign up for an Auth0 trial; explore Applications, APIs, Database, Social
 
 Created and configured in the Auth0 tenant `dev-daz2luy7lq0sm8ba.us.auth0.com`:
@@ -42,7 +45,7 @@ The frontend is built as a Vite SPA. The Auth0 SDK uses PKCE Authorization Code
 flow under the hood (mandatory for SPAs — no client secret in the browser).
 
 - **Auth0 dashboard**: Application type set to **Single Page Application**
-- **Code**: `src/main.jsx:10-25`
+- **Code**: [`src/main.jsx#L10-L25`](https://github.com/AhroniCsM/pizza42/blob/main/src/main.jsx#L10-L25)
 
 ```jsx
 <Auth0Provider
@@ -68,9 +71,9 @@ flow under the hood (mandatory for SPAs — no client secret in the browser).
 Chose React — it's the most common B2C frontend stack and the Auth0 React SDK
 is the most mature.
 
-- `package.json` declares React 19 + Vite + `@auth0/auth0-react` + `react-router-dom`
+- [`package.json`](https://github.com/AhroniCsM/pizza42/blob/main/package.json) declares React 19 + Vite + `@auth0/auth0-react` + `react-router-dom`
 - The whole app is wrapped in `<Auth0Provider>` and routes are managed by `<BrowserRouter>`
-  (`src/main.jsx:21`)
+  ([`src/main.jsx#L21`](https://github.com/AhroniCsM/pizza42/blob/main/src/main.jsx#L21))
 
 ---
 
@@ -81,8 +84,8 @@ Universal Login page. After authentication, Auth0 redirects back with an
 authorization code which the SDK silently exchanges for tokens.
 
 **Source:**
-- `src/App.jsx:75` — Log In button
-- `src/App.jsx:71` — Sign Up button (uses `screen_hint: 'signup'` to open the signup tab directly)
+- [`src/App.jsx#L75`](https://github.com/AhroniCsM/pizza42/blob/main/src/App.jsx#L75) — Log In button
+- [`src/App.jsx#L71`](https://github.com/AhroniCsM/pizza42/blob/main/src/App.jsx#L71) — Sign Up button (uses `screen_hint: 'signup'` to open the signup tab directly)
 
 ```jsx
 <button onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: 'signup' } })}>
@@ -100,7 +103,7 @@ authorization code which the SDK silently exchanges for tokens.
 Every protected backend call attaches the access token as a Bearer header. The
 backend validates the JWT against Auth0's published JWKS on every request.
 
-**Frontend** (`src/components/MenuPage.jsx:83`):
+**Frontend** ([`src/components/MenuPage.jsx#L82-L99`](https://github.com/AhroniCsM/pizza42/blob/main/src/components/MenuPage.jsx#L82-L99)):
 ```jsx
 const token = await getAccessTokenSilently()
 const res = await fetch('/api/orders', {
@@ -110,7 +113,7 @@ const res = await fetch('/api/orders', {
 })
 ```
 
-**Backend** (`backend/main.py:58-91`):
+**Backend** ([`backend/main.py#L58-L91`](https://github.com/AhroniCsM/pizza42/blob/main/backend/main.py#L58-L91)):
 ```python
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(token_scheme)) -> dict:
     jwks = get_signing_keys()
@@ -150,7 +153,7 @@ profile, and access their order history. The check happens **only on order
 placement**, and against the **live Auth0 profile** (not just the cached JWT
 claim) so the gate cannot be bypassed with a stale token.
 
-**Backend** (`backend/main.py:216-237`):
+**Backend** ([`backend/main.py#L216-L237`](https://github.com/AhroniCsM/pizza42/blob/main/backend/main.py#L216-L237)):
 ```python
 @app.post("/api/orders")
 async def place_order(order, token_payload = Depends(require_create_orders)):
@@ -166,7 +169,7 @@ async def place_order(order, token_payload = Depends(require_create_orders)):
 ```
 
 **Frontend** also shows a non-blocking banner reminding the user
-(`src/components/MenuPage.jsx:64, 116-121`):
+([`src/components/MenuPage.jsx#L64-L121`](https://github.com/AhroniCsM/pizza42/blob/main/src/components/MenuPage.jsx#L64-L121)):
 ```jsx
 const isEmailVerified = user?.email_verified === true
 {isAuthenticated && !isEmailVerified && (
@@ -186,12 +189,12 @@ its authorization request, and the backend rejects requests that don't carry it.
 - `Application Access` tab — SPA authorized for `create:orders`
 - `User Management > Roles > admin` — has `create:orders`
 
-**SDK requests it** (`src/main.jsx:16`):
+**SDK requests it** ([`src/main.jsx#L16`](https://github.com/AhroniCsM/pizza42/blob/main/src/main.jsx#L16)):
 ```jsx
 scope: "openid profile email offline_access create:orders"
 ```
 
-**Backend enforces it** (`backend/main.py:200-211`):
+**Backend enforces it** ([`backend/main.py#L200-L211`](https://github.com/AhroniCsM/pizza42/blob/main/backend/main.py#L200-L211)):
 ```python
 def require_create_orders(token_payload: dict = Depends(verify_token)) -> dict:
     permissions = token_payload.get("permissions", [])
@@ -210,7 +213,7 @@ the user's `app_metadata.orders` array. Customer order history is now part of
 the customer's identity profile — accessible to any microservice that validates
 the token, and visible in the Auth0 user dashboard for support agents.
 
-**Backend** (`backend/main.py:186-198, 240-260`):
+**Backend** ([`backend/main.py#L186-L198`](https://github.com/AhroniCsM/pizza42/blob/main/backend/main.py#L186-L198) and [`L240-L260`](https://github.com/AhroniCsM/pizza42/blob/main/backend/main.py#L240-L260)):
 ```python
 async def patch_user_app_metadata(user_id: str, app_metadata: dict) -> dict:
     mgmt_token = await get_mgmt_token()
@@ -227,8 +230,10 @@ new_app_metadata = {**(user_profile.get("app_metadata") or {}), "orders": update
 await patch_user_app_metadata(user_id, new_app_metadata)
 ```
 
-M2M credentials are injected via **Kubernetes Secret** at pod start — never
-committed to source. See `k8s/secret.example.yaml` for the shape.
+M2M credentials are injected via **Fly Secrets** (or Kubernetes Secrets) at
+container start — never committed to source. See
+[`k8s/secret.example.yaml`](https://github.com/AhroniCsM/pizza42/blob/main/k8s/secret.example.yaml)
+for the shape.
 
 ---
 
@@ -239,7 +244,7 @@ injects it into the ID token as a custom claim. The React app then reads the
 claim directly from the SDK — **zero API calls** to render the order history,
 the dashboard, the reorder CTA, or the loyalty tier.
 
-**Action source** — `auth0/actions/inject-order-history.js`:
+**Action source** — [`auth0/actions/inject-order-history.js`](https://github.com/AhroniCsM/pizza42/blob/main/auth0/actions/inject-order-history.js):
 ```javascript
 exports.onExecutePostLogin = async (event, api) => {
   const orders = event.user.app_metadata?.orders || [];
@@ -248,7 +253,7 @@ exports.onExecutePostLogin = async (event, api) => {
 };
 ```
 
-**Frontend reads the claim directly** (`src/App.jsx:11, 39`):
+**Frontend reads the claim directly** ([`src/App.jsx#L11`](https://github.com/AhroniCsM/pizza42/blob/main/src/App.jsx#L11) and [`L37`](https://github.com/AhroniCsM/pizza42/blob/main/src/App.jsx#L37)):
 ```jsx
 const PIZZA42_ORDERS_CLAIM = 'https://pizza42.com/orders'
 const orderHistoryFromToken = user?.[PIZZA42_ORDERS_CLAIM] || []
