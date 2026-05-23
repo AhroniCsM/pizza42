@@ -259,48 +259,6 @@ with standard JWT claims.
 
 ---
 
-## Bonus capabilities
-
-These weren't required by the task but were added to demonstrate the breadth of
-the Auth0 platform.
-
-### Loyalty tier badge (Newbie / Regular / VIP / Legend)
-A second Post-Login Action computes the customer's tier from
-`event.stats.logins_count` and writes it into the token. Marketing can change
-the thresholds without an app deploy.
-- Action source: `auth0/actions/add-custom-claims.js`
-- Frontend renders the tier ladder: `src/components/TierLadder.jsx`
-
-### Refresh-token rotation
-Short-lived access tokens (5 min) + rotating refresh tokens. If a refresh token
-ever leaks, Auth0 detects the reuse and revokes the entire session family.
-- Configured: `Applications > Pizza 42 Web > Settings > Refresh Token Rotation`
-- SDK: `src/main.jsx:18` — `useRefreshTokens={true}`
-
-### Step-up MFA for admin users
-A separate Action triggers MFA only when the user has the `admin` role,
-keeping regular customers friction-free.
-
-### AI agent (Pizza Bot) with scoped identity
-The `homework-helper-ai-agent` M2M application demonstrates Auth0's AI Agent
-pattern: a separate identity with narrowly-scoped permissions (`agent:read_stats`,
-`agent:write_game`). Users grant consent; agents cannot escalate beyond their
-scopes.
-- Frontend: `src/components/AgentPage.jsx`
-- Backend: `backend/main.py:425-540`
-
-### Email-verification re-send endpoint
-A small backend endpoint that triggers Auth0 to resend the verification mail
-via the Management API.
-- `backend/main.py:273-286`
-
-### Resilient deployment on AWS EKS
-The app is packaged into a single Docker image that runs **nginx (serving the
-React build) + uvicorn (FastAPI)** under supervisor. The image is published to
-AWS ECR and runs on EKS behind a Network Load Balancer.
-
----
-
 ## Implementation summary by layer
 
 | Layer | What's in there |
