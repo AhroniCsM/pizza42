@@ -90,9 +90,9 @@ ordering code; Auth0 handles everything related to identity.
 - 2 Post-Login Actions (custom claims, order-history injection)
 
 **Infrastructure**
-- Docker (multi-stage: Vite build + nginx + uvicorn under supervisor)
-- Kubernetes on AWS EKS
-- Container images in AWS ECR
+- Docker (multi-stage: Vite build → nginx + uvicorn under supervisor on port 3000)
+- Hosted on Fly.io with always-on machine and edge HTTPS
+- Secrets managed via Fly Secrets (M2M credentials never in source)
 
 ---
 

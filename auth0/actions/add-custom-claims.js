@@ -70,16 +70,22 @@ exports.onExecutePostLogin = async (event, api) => {
     clientSecret: event.secrets.MGMT_CLIENT_SECRET,
   });
 
-  // Auto-verify email for trusted social providers
+  // Auto-verify email for trusted social providers.
+  // Two-step: (1) override the claim in the CURRENT ID token so the frontend
+  // doesn't need a second login to see the change, (2) persist to the user
+  // profile via Management API so future logins are consistent.
   const isTrustedSocial = TRUSTED_SOCIAL_STRATEGIES.includes(event.connection.strategy);
-  if (isTrustedSocial && !event.user.email_verified) {
-    try {
-      await mgmt.users.update(
-        { id: event.user.user_id },
-        { email_verified: true },
-      );
-    } catch (e) {
-      console.log('Failed to auto-verify email:', e.message);
+  if (isTrustedSocial) {
+    api.idToken.setCustomClaim('email_verified', true);
+    if (!event.user.email_verified) {
+      try {
+        await mgmt.users.update(
+          { id: event.user.user_id },
+          { email_verified: true },
+        );
+      } catch (e) {
+        console.log('Failed to persist email_verified:', e.message);
+      }
     }
   }
 
