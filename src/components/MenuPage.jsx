@@ -79,20 +79,34 @@ export default function MenuPage({ orderHistoryFromToken }) {
     setOrdering(pizza.id)
     setToast(null)
 
-    try {
-      const token = await getAccessTokenSilently()
-      const res = await fetch('/api/orders', {
+    const body = JSON.stringify({
+      pizza_name: pizza.name,
+      quantity: 1,
+      price: pizza.price,
+    })
+
+    async function callOrders(forceFreshToken = false) {
+      const token = await getAccessTokenSilently(
+        forceFreshToken ? { cacheMode: 'off' } : undefined,
+      )
+      return fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          pizza_name: pizza.name,
-          quantity: 1,
-          price: pizza.price,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body,
       })
+    }
+
+    try {
+      let res = await callOrders()
+
+      // Brand-new customers can hit a transient 403 if the "user" role was
+      // assigned during this very login. Auth0 has updated their profile but
+      // the current access token was issued before that. A single retry with
+      // a forced-fresh token resolves it cleanly.
+      if (res.status === 403) {
+        res = await callOrders(true)
+      }
+
       const data = await res.json()
       if (!res.ok) {
         setToast({ type: 'error', text: data.detail || 'Order failed' })
