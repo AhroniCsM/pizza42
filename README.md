@@ -91,8 +91,10 @@ ordering code; Auth0 handles everything related to identity.
 
 **Infrastructure**
 - Docker (multi-stage: Vite build → nginx + uvicorn under supervisor on port 3000)
-- Hosted on Fly.io with always-on machine and edge HTTPS
-- Secrets managed via Fly Secrets (M2M credentials never in source)
+- **Production**: Fly.io with always-on machine + edge HTTPS — secrets via Fly Secrets
+- **Development / staging**: Kubernetes manifests under [`k8s/`](k8s/) for running on
+  any cluster (EKS, GKE, k3s, local kind) — secrets via Kubernetes Secrets
+- The same container image runs in both environments
 
 ---
 
