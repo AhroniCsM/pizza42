@@ -263,11 +263,20 @@ async def place_order(
 
 @app.get("/api/orders")
 async def get_orders(token_payload: dict = Depends(verify_token)):
-    """Get order history from the user's Auth0 profile."""
+    """Get order history from the user's Auth0 profile.
+
+    Also returns the live `email_verified` flag so the frontend can
+    self-heal stale tokens (e.g. a user who just clicked the email
+    verification link still has email_verified=false in their token).
+    """
     user_id = token_payload["sub"]
     user_profile = await get_user_full_profile(user_id)
     orders = (user_profile.get("app_metadata") or {}).get("orders", [])
-    return {"orders": orders, "count": len(orders)}
+    return {
+        "orders": orders,
+        "count": len(orders),
+        "email_verified": user_profile.get("email_verified", False),
+    }
 
 
 @app.post("/api/profile/resend-verification")

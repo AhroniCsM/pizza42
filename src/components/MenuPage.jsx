@@ -69,9 +69,9 @@ export default function MenuPage({ orderHistoryFromToken }) {
   const userTier = user?.[`${NS}user_tier`]
   const teaser = userTier ? TIER_TEASERS[userTier] : null
 
-  // If the token says unverified, silently poll the live profile in case the
-  // user just clicked the verification link. As soon as the backend reports
-  // verified=true, force a fresh token + drop the banner.
+  // If the token says unverified, silently check the live profile in case
+  // the user just clicked the verification link. As soon as the backend
+  // reports verified=true, force a fresh token + drop the banner.
   useEffect(() => {
     if (!isAuthenticated || user?.email_verified === true) return
     let cancelled = false
@@ -81,18 +81,17 @@ export default function MenuPage({ orderHistoryFromToken }) {
         const res = await fetch('/api/orders', {
           headers: { Authorization: `Bearer ${token}` },
         })
-        // /api/orders only succeeds if the backend's live email_verified check passes.
-        // If we get 200, the user must be verified live even if our token says otherwise.
-        if (!cancelled && res.ok) {
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled && data.email_verified === true) {
           setServerVerifiedOverride(true)
           // Force fresh token in the background so future requests carry it.
           await getAccessTokenSilently({ cacheMode: 'off' })
         }
       } catch {
-        /* ignore — banner just stays until next login */
+        /* ignore — banner stays until next login */
       }
     }
-    // initial check + every 8s while the page is open
     check()
     const id = setInterval(check, 8000)
     return () => { cancelled = true; clearInterval(id) }
