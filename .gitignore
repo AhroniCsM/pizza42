@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+backend/__pycache__/
+backend/.venv/
+backend/venv/
+
+# Build artifacts
+dist/
+dist-ssr/
+*.local
+build/
+
+# Environment & secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Internal / personal notes — not part of the project
+INTERVIEW_*.md
+STUDY_GUIDE.md
+pass/
+coralogix-values.yaml
+auth0-react/
+
+# Coverage
+coverage/
+
+# Misc OS files
+Thumbs.db

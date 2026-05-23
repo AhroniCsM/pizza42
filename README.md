@@ -1,0 +1,256 @@
+# 🍕 Pizza 42
+
+> Modern online ordering for a national pizza chain — built on React, FastAPI, and Auth0.
+
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Auth0](https://img.shields.io/badge/Auth0-Identity-EB5424?logo=auth0&logoColor=white)](https://auth0.com)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Pizza 42 is a customer-facing ordering application that lets registered users
+browse a pizza menu, place orders, and view their order history. The entire
+identity layer — authentication, authorization, signup, social login, email
+verification, and customer profile enrichment — is delegated to [Auth0](https://auth0.com).
+
+---
+
+## Why this exists
+
+Identity is one of the highest-leverage layers in a consumer app, and one of the
+easiest to get wrong. Pizza 42 needed a system that:
+
+- **Never stores credentials in our own infrastructure** (security & compliance)
+- **Offers a frictionless signup and login** (conversion)
+- **Lets new customers join via Google or email/password** (convenience)
+- **Enforces email verification before transactions** (trust & data hygiene)
+- **Enriches every customer interaction with profile + behavioral data** (marketing)
+- **Scales from one location to nationwide rollout** (growth)
+
+Auth0 solves all of those concerns. Pizza 42's engineering team writes pizza
+ordering code; Auth0 handles everything related to identity.
+
+---
+
+## Features
+
+| Capability | Powered by |
+|---|---|
+| Sign up + Sign in (email/password) | Auth0 Database Connection |
+| Sign in with Google (social) | Auth0 Social Connection |
+| Hosted login — no passwords ever touch the app | Auth0 Universal Login |
+| Email verification required before placing an order | Auth0 + custom backend gate |
+| Order placement requires a valid token and `create:orders` scope | Auth0 RBAC + custom permission |
+| Orders persisted to the customer's identity profile | Auth0 `app_metadata` via Management API |
+| Order history available in the ID token at every login | Auth0 Post-Login Action (custom claims) |
+| Loyalty tiers (Newbie / Regular / VIP / Legend) computed at login | Auth0 Post-Login Action |
+| Step-up MFA for sensitive operations | Auth0 Actions |
+| AI-assistant pattern with scoped, revocable agent identity | Auth0 M2M + custom claims |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────┐        ┌────────────────────────┐        ┌─────────────────────┐
+│   React SPA         │  ──→   │  Auth0 (Universal      │        │  Pizza 42 Backend   │
+│   (browser)         │        │  Login + JWT issuer)   │        │  (FastAPI)          │
+│                     │  ←──   │                        │        │                     │
+│  • Menu             │  JWT   │  • Database Conn       │        │  • Validates JWT    │
+│  • Order            │        │  • Google Social       │        │    (RS256 / JWKS)   │
+│  • Profile          │        │  • Email verification  │        │  • Email gate       │
+│  • Orders history   │        │  • Actions             │        │  • Permission check │
+└─────────────────────┘        │  • RBAC                │  ←──→  │  • Mgmt API client  │
+        │                      └────────────────────────┘  M2M   └─────────────────────┘
+        │                                                                  │
+        └──────────────── Bearer <access_token> ───────────────────────────┘
+```
+
+- **Stateless authentication** — every backend request validates a JWT independently using Auth0's published public keys (JWKS). No session store, no Redis, no shared secrets.
+- **Defense in depth** — the order endpoint requires (1) a valid signed token, (2) the `create:orders` permission, and (3) a verified email confirmed against the live Auth0 profile.
+- **Per-customer state** — order history lives in Auth0's `app_metadata` keyed to the user's identity, so it's available to every microservice that validates the token.
+
+---
+
+## Tech stack
+
+**Frontend**
+- React 19 + Vite 8
+- React Router 7
+- `@auth0/auth0-react` (official SDK, PKCE flow with refresh-token rotation)
+
+**Backend**
+- FastAPI (Python 3.12)
+- `python-jose` for JWT validation
+- `httpx` for outbound Management API calls
+
+**Identity**
+- Auth0 (Okta Customer Identity Cloud)
+- 1 SPA application + 1 custom API + 2 M2M applications (backend, AI agent)
+- 2 Post-Login Actions (custom claims, order-history injection)
+
+**Infrastructure**
+- Docker (multi-stage: Vite build + nginx + uvicorn under supervisor)
+- Kubernetes on AWS EKS
+- Container images in AWS ECR
+
+---
+
+## Quick start
+
+### Prerequisites
+- Node.js 20+ and npm
+- Python 3.12+
+- A free [Auth0](https://auth0.com/signup) tenant
+
+### 1. Configure Auth0
+
+Create the following in your Auth0 dashboard:
+
+1. **A Single Page Application**
+   - Allowed Callback URLs: `http://localhost:3000`
+   - Allowed Logout URLs: `http://localhost:3000`
+   - Allowed Web Origins: `http://localhost:3000`
+   - Refresh Token Rotation: enabled
+   - Grant Types: Authorization Code, Refresh Token
+
+2. **A custom API** (identifier e.g. `https://pizza42-api`)
+   - Enable RBAC
+   - Enable "Add Permissions in Access Token"
+   - Allow Offline Access
+   - Permissions: `create:orders` (you can add more)
+
+3. **A Machine-to-Machine application** authorized for the Auth0 Management API
+   with scopes: `read:users`, `update:users` (used to read/write `app_metadata`)
+
+4. **A Database Connection** (`Username-Password-Authentication`) and a
+   **Google Social Connection**, both enabled on the SPA
+
+5. **Two Post-Login Actions** (see `auth0/actions/` for the code):
+   - `Add Custom Claims` — computes tier from `event.stats.logins_count`
+   - `Inject Order History` — copies `app_metadata.orders` into the ID token
+
+### 2. Set environment variables
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+# fill in your Auth0 tenant values
+```
+
+### 3. Run locally
+
+```bash
+# Frontend
+npm install
+npm run dev          # http://localhost:5173
+
+# Backend (in a separate terminal)
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+The Vite dev server proxies `/api/*` to the backend.
+
+---
+
+## Deployment (Kubernetes)
+
+The Dockerfile produces a single image that runs **nginx (serving the React
+build) and uvicorn (serving the API)** under supervisor, both on port 3000.
+
+### Build and push to your registry
+
+```bash
+docker build --platform linux/amd64 -t your-registry/pizza42:latest .
+docker push your-registry/pizza42:latest
+```
+
+### Deploy to Kubernetes
+
+```bash
+# 1. Create the Auth0 M2M secret
+kubectl create secret generic auth0-m2m \
+  --from-literal=client_id='YOUR_M2M_CLIENT_ID' \
+  --from-literal=client_secret='YOUR_M2M_CLIENT_SECRET'
+
+# 2. Apply the manifests
+kubectl apply -f k8s/
+
+# 3. Verify
+kubectl rollout status deployment/react-app
+kubectl get pods,svc -l app=react-app
+```
+
+For local development against the cluster:
+```bash
+kubectl port-forward svc/react-app 3000:3000
+# Open http://localhost:3000
+```
+
+---
+
+## Project structure
+
+```
+.
+├── src/                  # React frontend
+│   ├── components/       # MenuPage, OrdersPage, ProfilePage, TierLadder, AgentPage
+│   ├── App.jsx           # Top-level routing, Auth0Provider
+│   └── main.jsx          # Auth0 SDK configuration
+├── backend/              # FastAPI backend
+│   ├── main.py           # JWT validation, /api/orders, Management API client
+│   └── requirements.txt
+├── auth0/
+│   └── actions/          # Post-Login Action source (deploy via Mgmt API)
+├── k8s/                  # Kubernetes manifests
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── secret.example.yaml
+├── Dockerfile            # Multi-stage build (Vite + nginx + uvicorn)
+├── nginx.conf            # SPA + /api/* proxy
+└── README.md
+```
+
+---
+
+## Auth0 Actions
+
+Both Post-Login Actions live in version control under `auth0/actions/`. They
+can be deployed to Auth0 via the Management API:
+
+### `Add Custom Claims`
+Computes the customer's loyalty tier (NEWBIE / REGULAR / VIP / LEGEND) based on
+login count, and injects it as a custom claim into the ID and access tokens.
+Marketing changes the threshold without an app deploy.
+
+### `Inject Order History`
+Reads `event.user.app_metadata.orders` and adds it to the ID token at every
+login. The frontend renders the order history with zero additional API calls.
+
+---
+
+## API reference
+
+| Method | Endpoint | Authentication | Description |
+|---|---|---|---|
+| `GET` | `/api/orders` | Bearer token | Returns the user's order history from `app_metadata` |
+| `POST` | `/api/orders` | Bearer + `create:orders` scope + verified email | Creates a new order and persists to `app_metadata` |
+| `POST` | `/api/profile/resend-verification` | Bearer token | Triggers an Auth0 verification email |
+
+---
+
+## Security model
+
+- **Passwords never touch Pizza 42's infrastructure.** They are entered exclusively on Auth0's domain. Even an XSS vulnerability in our frontend cannot leak credentials.
+- **Tokens are short-lived (5 min)** with rotating refresh tokens. If a refresh token leaks, Auth0 detects the reuse on the next legitimate refresh and revokes the entire session family.
+- **The `email_verified` check happens against the live Auth0 profile**, not just the token, so a stale token cannot bypass the gate.
+- **M2M credentials are stored as Kubernetes Secrets**, never in source code, never in the bundled frontend.
+- **All identity events are audit-logged** by Auth0 (`Monitoring > Logs` in the dashboard).
+
+---
+
+## License
+
+MIT

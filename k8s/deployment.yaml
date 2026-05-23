@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-app
+  labels:
+    app: react-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: react-app
+  template:
+    metadata:
+      labels:
+        app: react-app
+    spec:
+      containers:
+        - name: react-app
+          image: 182602700241.dkr.ecr.eu-north-1.amazonaws.com/react-app:v24
+          ports:
+            - containerPort: 3000
+          env:
+            - name: AUTH0_DOMAIN
+              value: "dev-daz2luy7lq0sm8ba.us.auth0.com"
+            - name: AUTH0_AUDIENCE
+              value: "https://auth0-learning-api"
+            - name: AUTH0_M2M_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-m2m
+                  key: client_id
+            - name: AUTH0_M2M_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-m2m
+                  key: client_secret
+            - name: AUTH0_AGENT_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-m2m
+                  key: agent_client_id
+            - name: AUTH0_AGENT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-m2m
+                  key: agent_client_secret
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
