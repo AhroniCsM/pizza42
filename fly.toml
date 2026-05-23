@@ -1,0 +1,32 @@
+# Fly.io configuration for Pizza 42
+# https://fly.io/docs/reference/configuration/
+
+app = "pizza42-aharon"
+primary_region = "ams"   # Amsterdam — closest to EU users (change if you prefer)
+
+[build]
+  dockerfile = "Dockerfile"
+  [build.args]
+    # Auth0 SPA config — baked into the Vite bundle at build time.
+    # These are PUBLIC values, safe to commit.
+    VITE_AUTH0_DOMAIN = "dev-daz2luy7lq0sm8ba.us.auth0.com"
+    VITE_AUTH0_CLIENT_ID = "9MsvwysOmaEtZyc6MnQRRtaHDSxVtAsQ"
+    VITE_AUTH0_API_AUDIENCE = "https://auth0-learning-api"
+
+[env]
+  # Backend env vars (non-secret)
+  AUTH0_DOMAIN = "dev-daz2luy7lq0sm8ba.us.auth0.com"
+  AUTH0_AUDIENCE = "https://auth0-learning-api"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"      # always-on, no cold starts
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1
