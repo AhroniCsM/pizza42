@@ -40,6 +40,10 @@ pnpm-debug.log*
 # Internal / personal notes — not part of the project
 INTERVIEW_*.md
 STUDY_GUIDE.md
+PRESENTATION.md
+DEMO_SCRIPT.md
+QA_PREP.md
+SERGIO_QUESTIONS.md
 pass/
 coralogix-values.yaml
 auth0-react/
